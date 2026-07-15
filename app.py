@@ -1,43 +1,62 @@
 from fastapi import FastAPI, HTTPException
-from models import EventModel, RiskScoreResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from models import EventModel, RiskScoreResponse, AlertDetail, DashboardStats, SimulationResponse
 from features import FeatureExtractor
 from ml_models import IsolationForestAnomalyDetector
+from simulator import generate_full_simulation
+from uuid import UUID
+from datetime import datetime
 
 app = FastAPI(
-    title="Insider Threat Detection API",
+    title="PrivGuard — Insider Threat Detection Platform",
     description="AI-Driven Privileged Access Misuse & Insider Threat Detection Platform",
-    version="1.0.0"
+    version="2.0.0"
+)
+
+# CORS for development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize singletons
 feature_extractor = FeatureExtractor()
 anomaly_detector = IsolationForestAnomalyDetector()
 
-@app.post("/api/v1/events/ingest", response_model=RiskScoreResponse)
-async def ingest_event(event: EventModel):
-    """
-    Ingest a single event, evaluate it against rules, anomaly models, and graph context.
-    """
+# In-memory alert store
+alert_store: list[AlertDetail] = []
+
+
+def _score_event(event: EventModel) -> tuple[float, float, float, float, str, str]:
+    """Run the full scoring pipeline on an event. Returns (composite, anomaly, rule, graph, band, action)."""
     # 1. Feature Extraction
     features = feature_extractor.extract_features(event)
     
     # 2. Anomaly Model (UEBA) evaluation
     anomaly_score = anomaly_detector.predict_score(features)
     
-    # 3. Rule Engine evaluation (Mocked for now)
+    # 3. Rule Engine evaluation
     rule_score = 0.0
     if event.bytes_transferred and event.bytes_transferred > 10000:
         rule_score = 80.0
+    if event.event_type in ("privilege_grant", "config_change"):
+        rule_score = max(rule_score, 60.0)
+    if event.command_text and any(cmd in event.command_text.lower() for cmd in ["mysqldump", "chmod 777", "net user", "scp", "curl -x post"]):
+        rule_score = max(rule_score, 70.0)
         
-    # 4. Graph Context evaluation (Mocked for now)
+    # 4. Graph Context evaluation (enhanced mock)
     graph_score = 0.0
+    if event.target_system and any(s in event.target_system for s in ["tier0", "dc-master", "secrets-vault", "domain-controller"]):
+        graph_score = 50.0
     
-    # 5. Composite Score Calculation
-    # Weights: w1=0.30 (Rules), w2=0.35 (Anomaly), w3=0.20 (Graph), w4=0.15 (Context)
-    # Using normalized context weight distribution to 1.0 for the first 3
+    # 5. Composite Score
     composite = (0.35 * rule_score) + (0.45 * anomaly_score) + (0.20 * graph_score)
     
-    # Routing logic based on composite score
+    # Risk band routing
     risk_band = "Low"
     action = "allow"
     if composite > 85:
@@ -49,11 +68,41 @@ async def ingest_event(event: EventModel):
     elif composite > 30:
         risk_band = "Medium"
         action = "step-up-mfa"
-        
+    
+    return composite, anomaly_score, rule_score, graph_score, risk_band, action
+
+
+@app.post("/api/v1/events/ingest", response_model=RiskScoreResponse)
+async def ingest_event(event: EventModel):
+    """
+    Ingest a single event, evaluate it against rules, anomaly models, and graph context.
+    """
+    composite, anomaly_score, rule_score, graph_score, risk_band, action = _score_event(event)
+    
     explanation = (f"Risk {composite:.1f}/100 - "
                    f"Anomaly Score: {anomaly_score:.1f}, "
                    f"Rule Score: {rule_score:.1f}. "
                    f"Action assigned based on {risk_band} risk band.")
+    
+    # Store in alert store
+    alert_store.append(AlertDetail(
+        event_id=str(event.event_id),
+        timestamp=event.timestamp.isoformat(),
+        user_name="Unknown",
+        department="Unknown",
+        event_type=event.event_type,
+        target_system=event.target_system or "N/A",
+        target_object=event.target_object or "N/A",
+        bytes_transferred=event.bytes_transferred or 0,
+        command_text=event.command_text or "",
+        composite_risk_score=round(composite, 1),
+        anomaly_score=round(anomaly_score, 1),
+        rule_score=round(rule_score, 1),
+        risk_band=risk_band,
+        action_required=action,
+        explanation=explanation,
+        scenario="live"
+    ))
         
     return RiskScoreResponse(
         event_id=event.event_id,
@@ -63,9 +112,109 @@ async def ingest_event(event: EventModel):
         explanation=explanation
     )
 
+
+@app.get("/api/v1/alerts", response_model=list[AlertDetail])
+async def get_alerts():
+    """Return all stored alerts, newest first."""
+    return list(reversed(alert_store))
+
+
+@app.get("/api/v1/stats", response_model=DashboardStats)
+async def get_stats():
+    """Return aggregate dashboard statistics."""
+    if not alert_store:
+        return DashboardStats(
+            total_events=0,
+            active_threats=0,
+            critical_alerts=0,
+            avg_risk_score=0.0,
+            band_counts={"Low": 0, "Medium": 0, "High": 0, "Critical": 0}
+        )
+    
+    band_counts = {"Low": 0, "Medium": 0, "High": 0, "Critical": 0}
+    total_score = 0.0
+    
+    for alert in alert_store:
+        band_counts[alert.risk_band] = band_counts.get(alert.risk_band, 0) + 1
+        total_score += alert.composite_risk_score
+    
+    return DashboardStats(
+        total_events=len(alert_store),
+        active_threats=band_counts["Medium"] + band_counts["High"] + band_counts["Critical"],
+        critical_alerts=band_counts["Critical"],
+        avg_risk_score=round(total_score / len(alert_store), 1),
+        band_counts=band_counts
+    )
+
+
+@app.post("/api/v1/simulate", response_model=SimulationResponse)
+async def run_simulation():
+    """
+    Run a full threat simulation: generates normal, suspicious, and malicious events,
+    scores them through the ML pipeline, and returns the results.
+    """
+    # Clear previous simulation data
+    alert_store.clear()
+    
+    raw_events = generate_full_simulation()
+    alerts = []
+    
+    for raw in raw_events:
+        meta = raw.pop("_meta", {})
+        event = EventModel(**raw)
+        
+        composite, anomaly_score, rule_score, graph_score, risk_band, action = _score_event(event)
+        
+        explanation = (f"Risk {composite:.1f}/100 - "
+                       f"Anomaly: {anomaly_score:.1f}, "
+                       f"Rules: {rule_score:.1f}, "
+                       f"Graph: {graph_score:.1f}. "
+                       f"→ {action}")
+        
+        alert = AlertDetail(
+            event_id=str(event.event_id),
+            timestamp=event.timestamp.isoformat(),
+            user_name=meta.get("user_name", "Unknown"),
+            department=meta.get("department", "Unknown"),
+            event_type=event.event_type,
+            target_system=event.target_system or "N/A",
+            target_object=event.target_object or "N/A",
+            bytes_transferred=event.bytes_transferred or 0,
+            command_text=event.command_text or "",
+            composite_risk_score=round(composite, 1),
+            anomaly_score=round(anomaly_score, 1),
+            rule_score=round(rule_score, 1),
+            risk_band=risk_band,
+            action_required=action,
+            explanation=explanation,
+            scenario=meta.get("scenario", "unknown")
+        )
+        
+        alerts.append(alert)
+        alert_store.append(alert)
+    
+    threats = sum(1 for a in alerts if a.risk_band in ("Medium", "High", "Critical"))
+    
+    return SimulationResponse(
+        status="simulation_complete",
+        events_generated=len(alerts),
+        threats_detected=threats,
+        alerts=alerts
+    )
+
+
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "message": "Insider Threat Engine is running."}
+    return {"status": "ok", "message": "PrivGuard Insider Threat Engine is running."}
+
+
+# Serve frontend — mount AFTER API routes so /api paths take priority
+@app.get("/")
+async def serve_index():
+    return FileResponse("static/index.html")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 if __name__ == "__main__":
     import uvicorn

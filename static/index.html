@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="PrivGuard — AI-Driven Insider Threat Detection Platform with real-time UEBA, anomaly detection, and automated response.">
+    <title>PrivGuard — Insider Threat Detection Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo-icon">🛡️</div>
+                <div>
+                    <h1 class="header-title">PrivGuard</h1>
+                    <p class="header-subtitle">Insider Threat Detection Platform</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-badge">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Engine Online</span>
+                </div>
+                <button class="btn-simulate" id="btnSimulate" onclick="runSimulation()">
+                    ⚡ Simulate Attack
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <section class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <span class="stat-icon">📊</span>
+                <div class="stat-label">Total Events</div>
+                <div class="stat-value" id="statTotal">0</div>
+            </div>
+            <div class="stat-card threats">
+                <span class="stat-icon">⚠️</span>
+                <div class="stat-label">Active Threats</div>
+                <div class="stat-value" id="statThreats">0</div>
+            </div>
+            <div class="stat-card critical">
+                <span class="stat-icon">🚨</span>
+                <div class="stat-label">Critical Alerts</div>
+                <div class="stat-value" id="statCritical">0</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">📈</span>
+                <div class="stat-label">Avg Risk Score</div>
+                <div class="stat-value" id="statAvgScore">0.0</div>
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <section class="main-grid">
+            <!-- Threat Feed -->
+            <div class="panel" id="threatPanel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="panel-title-dot"></span>
+                        Live Threat Feed
+                    </div>
+                    <span class="panel-badge" id="feedCount">0 events</span>
+                </div>
+                <div class="threat-header">
+                    <span>Time</span>
+                    <span>User</span>
+                    <span>Target</span>
+                    <span>Risk Band</span>
+                    <span>Score</span>
+                    <span>Action</span>
+                </div>
+                <div class="panel-body">
+                    <div class="threat-feed" id="threatFeed">
+                        <div class="empty-state" id="emptyState">
+                            <div class="empty-icon">🔍</div>
+                            <div class="empty-title">No Events Yet</div>
+                            <div class="empty-desc">
+                                Click <strong>"⚡ Simulate Attack"</strong> to generate realistic threat scenarios and watch them get detected in real time.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side Charts -->
+            <div class="side-panels">
+                <!-- Donut Chart -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-title-dot"></span>
+                            Risk Distribution
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="donut-wrapper">
+                            <canvas id="donutChart" width="220" height="220"></canvas>
+                            <div class="donut-legend" id="donutLegend">
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: var(--color-low)"></span>
+                                    Low
+                                    <span class="legend-count" id="legendLow">0</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: var(--color-medium)"></span>
+                                    Medium
+                                    <span class="legend-count" id="legendMedium">0</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: var(--color-high)"></span>
+                                    High
+                                    <span class="legend-count" id="legendHigh">0</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: var(--color-critical)"></span>
+                                    Critical
+                                    <span class="legend-count" id="legendCritical">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Chart -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-title-dot"></span>
+                            Risk Score Timeline
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="chart-container">
+                            <canvas id="timelineChart" width="340" height="180"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer: Score Breakdown + Latest Alert Detail -->
+        <section class="footer-row">
+            <!-- Score Breakdown -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="panel-title-dot"></span>
+                        Scoring Model Weights
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="breakdown-table">
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">🧠 ML Anomaly (UEBA)</span>
+                            <div class="breakdown-bar-track">
+                                <div class="breakdown-bar-fill" style="width: 45%; background: var(--accent-cyan);"></div>
+                            </div>
+                            <span class="breakdown-value">45%</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">📋 Rule Engine</span>
+                            <div class="breakdown-bar-track">
+                                <div class="breakdown-bar-fill" style="width: 35%; background: var(--accent-blue);"></div>
+                            </div>
+                            <span class="breakdown-value">35%</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">🔗 Graph Context</span>
+                            <div class="breakdown-bar-track">
+                                <div class="breakdown-bar-fill" style="width: 20%; background: var(--accent-purple);"></div>
+                            </div>
+                            <span class="breakdown-value">20%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Latest Critical Alert -->
+            <div class="panel" id="latestAlertPanel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="panel-title-dot"></span>
+                        Latest Critical Alert
+                    </div>
+                    <span class="panel-badge" id="latestAlertBadge">—</span>
+                </div>
+                <div class="panel-body">
+                    <div class="breakdown-table" id="latestAlertDetail">
+                        <div class="empty-state" style="padding: 30px;">
+                            <div class="empty-icon" style="font-size: 2rem;">🟢</div>
+                            <div class="empty-title">All Clear</div>
+                            <div class="empty-desc">No critical alerts detected.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
