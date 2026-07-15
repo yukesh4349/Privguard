@@ -1,0 +1,156 @@
+========================================================
+  HOW TO RUN PRIVGUARD - Insider Threat Detection Engine
+========================================================
+
+PREREQUISITES:
+  - Python 3.10 or higher installed
+  - Internet connection (first time only, to install packages)
+
+========================================================
+STEP-BY-STEP INSTRUCTIONS (Windows)
+========================================================
+
+1. OPEN A TERMINAL
+   - Open Command Prompt or PowerShell
+   - Navigate to the project folder:
+     
+     cd D:\hackathon\FinSpark\project1
+
+
+2. ACTIVATE THE VIRTUAL ENVIRONMENT
+   
+     venv\Scripts\activate
+
+   You should see (venv) at the beginning of your prompt.
+   
+   NOTE: If the venv folder doesn't exist (e.g., fresh clone),
+   create it first:
+     
+     python -m venv venv
+     venv\Scripts\activate
+     pip install -r requirements.txt
+
+
+3. TRAIN THE ML MODEL (First time only, or to retrain)
+   
+     python generate_synthetic_data.py
+
+   This generates synthetic behavioral data and trains the
+   Isolation Forest anomaly detector. Trained models are
+   saved in the models/ folder.
+
+
+4. START THE SERVER
+   
+     python app.py
+
+   OR with auto-reload for development:
+   
+     uvicorn app:app --reload --host 0.0.0.0 --port 8000
+
+   You should see:
+     INFO:  Uvicorn running on http://0.0.0.0:8000
+
+   The API is now live at: http://localhost:8000
+
+
+5. TEST THE API
+
+   a) Health Check (browser or terminal):
+      Open in browser: http://localhost:8000/health
+      
+      Expected response:
+      {"status": "ok", "message": "Insider Threat Engine is running."}
+
+   b) Interactive API Docs (Swagger UI):
+      Open in browser: http://localhost:8000/docs
+
+   c) Test Event Ingestion (PowerShell):
+
+      $body = '{
+        "event_id": "550e8400-e29b-41d4-a716-446655440000",
+        "session_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+        "timestamp": "2026-07-15T02:30:00Z",
+        "event_type": "export",
+        "target_system": "prod-database-01",
+        "target_object": "customers_pii_table",
+        "bytes_transferred": 50000,
+        "command_text": "SELECT * FROM customers",
+        "result_status": "success"
+      }'
+      Invoke-WebRequest -Uri http://localhost:8000/api/v1/events/ingest -Method POST -ContentType 'application/json' -Body $body
+
+      Expected response:
+      {
+        "event_id": "550e8400-e29b-41d4-a716-446655440000",
+        "composite_risk_score": 54.12,
+        "risk_band": "Medium",
+        "action_required": "step-up-mfa",
+        "explanation": "Risk 54.1/100 - Anomaly Score: 58.0, Rule Score: 80.0..."
+      }
+
+
+6. STOP THE SERVER
+   Press Ctrl+C in the terminal where the server is running.
+
+
+========================================================
+STEP-BY-STEP INSTRUCTIONS (macOS / Linux)
+========================================================
+
+1. cd /path/to/Privguard
+
+2. source venv/bin/activate
+   (or create venv first: python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt)
+
+3. python generate_synthetic_data.py   # first time only
+
+4. python app.py
+
+5. Test: curl http://localhost:8000/health
+
+6. Stop: Ctrl+C
+
+
+========================================================
+QUICK REFERENCE
+========================================================
+
+  Start server:     python app.py
+  Health check:     http://localhost:8000/health
+  API docs:         http://localhost:8000/docs
+  Ingest events:    POST http://localhost:8000/api/v1/events/ingest
+  Train model:      python generate_synthetic_data.py
+  Install deps:     pip install -r requirements.txt
+
+
+========================================================
+RISK SCORING REFERENCE
+========================================================
+
+  Score 0-30    -> Low      -> Action: allow
+  Score 31-60   -> Medium   -> Action: step-up-mfa
+  Score 61-85   -> High     -> Action: jit-approval-required
+  Score 86-100  -> Critical -> Action: auto-block-session
+
+
+========================================================
+TROUBLESHOOTING
+========================================================
+
+  Problem: "ModuleNotFoundError"
+  Fix:     Make sure venv is activated and run:
+           pip install -r requirements.txt
+
+  Problem: "Model not trained, fallback to 0"
+  Fix:     Run: python generate_synthetic_data.py
+
+  Problem: Port 8000 already in use
+  Fix:     Use a different port:
+           uvicorn app:app --port 8001
+
+  Problem: venv\Scripts\activate not found
+  Fix:     Create the venv first:
+           python -m venv venv
+
+========================================================
