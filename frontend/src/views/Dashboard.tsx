@@ -17,10 +17,12 @@ export function Dashboard({ onNavigate, onSelectAlert }: DashboardProps) {
   const [users, setUsers] = useState(() => getStoredData("privileged_users", mockPrivilegedUsers));
   const [sessions, setSessions] = useState(() => getStoredData("active_sessions", []));
   const [cases, setCases] = useState(() => getStoredData("investigation_cases", []));
+  const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    import('../services/api').then(m => m.api.getAlerts()).then(data => {
-      setAlerts(data);
+    import('../services/api').then(m => {
+      m.api.getAlerts().then(setAlerts).catch(console.error);
+      m.api.getStats().then(setStats).catch(console.error);
     }).catch(console.error);
 
     const handleSync = () => {
@@ -33,10 +35,10 @@ export function Dashboard({ onNavigate, onSelectAlert }: DashboardProps) {
   }, []);
 
   // Compute dynamic KPI values
-  const activeThreatsCount = alerts.length;
+  const activeThreatsCount = stats?.active_threats || alerts.length;
   const privilegedUsersCount = users.length;
-  const criticalIncidentsCount = alerts.filter(a => a.riskLevel === RiskLevel.CRITICAL).length;
-  const averageRiskScore = alerts.length > 0 ? Math.round(alerts.reduce((acc, a) => acc + a.riskScore, 0) / alerts.length) : 0;
+  const criticalIncidentsCount = stats?.critical_alerts || alerts.filter(a => a.riskLevel === RiskLevel.CRITICAL).length;
+  const averageRiskScore = stats?.avg_risk_score ? Math.round(stats.avg_risk_score) : (alerts.length > 0 ? Math.round(alerts.reduce((acc, a) => acc + a.riskScore, 0) / alerts.length) : 0);
   const activeCasesCount = cases.length;
   const activeSessionsCount = sessions.length;
   
@@ -78,7 +80,7 @@ export function Dashboard({ onNavigate, onSelectAlert }: DashboardProps) {
     <div id="dashboard-view-container" className="space-y-6">
       
       {/* 1. TOP KPI Row - High Information Density Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3.5">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-3.5">
         {[
           { title: "Active Threats", val: activeThreatsCount.toString(), change: activeThreatsCount > 0 ? "+12%" : "Stable", status: "up", color: "text-brand-critical border-red-500/20 bg-red-500/5", points: activeThreatsCount > 0 ? [2, 3, 1, 4, 3, activeThreatsCount] : [0, 0, 0], icon: <ShieldAlert className="w-4 h-4 text-brand-critical" />, pulse: activeThreatsCount > 0 },
           { title: "Privileged Users", val: privilegedUsersCount.toString(), change: privilegedUsersCount > 0 ? "+2.4%" : "0", status: "up", color: "text-brand-primary border-blue-500/10 bg-blue-500/5", points: privilegedUsersCount > 0 ? [810, 815, 824, 830, 835, privilegedUsersCount] : [0, 0, 0], icon: <Users className="w-4 h-4 text-brand-primary" /> },

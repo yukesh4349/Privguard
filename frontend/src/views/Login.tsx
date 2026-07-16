@@ -8,8 +8,8 @@ interface LoginProps {
 
 export function Login({ onLoginSuccess }: LoginProps) {
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const [username, setUsername] = useState("admin_soc_tier3");
-  const [password, setPassword] = useState("••••••••••••••••");
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("112233");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState("EN-US");

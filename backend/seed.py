@@ -13,7 +13,7 @@ def seed():
             name="Security Admin",
             department="SecOps",
             role="admin",
-            hashed_password=get_password_hash("123456")
+            hashed_password=get_password_hash("112233")
         )
         db.add(admin)
 
@@ -25,7 +25,7 @@ def seed():
             name="Alice Chen",
             department="Engineering",
             role="user",
-            hashed_password=get_password_hash("123456")
+            hashed_password=get_password_hash("112233")
         )
         db.add(alice)
 

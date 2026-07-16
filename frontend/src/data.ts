@@ -5,14 +5,17 @@ export const getStoredData = <T>(key: string, defaultData: T): T => {
   if (typeof window === "undefined") return defaultData;
   const stored = localStorage.getItem(`privguard_${key}`);
   if (stored === null) {
-    // Return empty by default for high-frequent incident alerts, cases, logs and sessions to guarantee "fresh baseline"
-    if (["threat_alerts", "active_sessions", "threat_intel", "investigation_cases", "audit_logs", "identity_nodes", "identity_edges"].includes(key)) {
-      return [] as unknown as T;
-    }
+    // Removed the override that was forcing empty arrays so that the mock data for 
+    // the users successfully populates all features in the menu bar.
     return defaultData;
   }
   try {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    // If local storage has an empty array but we have rich mock data, use the mock data!
+    if (Array.isArray(parsed) && parsed.length === 0 && Array.isArray(defaultData) && defaultData.length > 0) {
+      return defaultData;
+    }
+    return parsed;
   } catch (e) {
     return defaultData;
   }
