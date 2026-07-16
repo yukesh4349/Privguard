@@ -62,5 +62,11 @@ export const api = {
       description: alert.explanation,
       evidenceCount: 1
     }));
+  },
+  
+  getIdentityGraph: async () => {
+    const response = await fetch(`${API_BASE}/dashboard/identity-graph`, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch identity graph');
+    return response.json();
   }
 };

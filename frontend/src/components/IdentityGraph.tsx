@@ -3,6 +3,7 @@ import { mockIdentityNodes, mockIdentityEdges, getStoredData } from "../data";
 import { IdentityNode, RiskLevel } from "../types";
 import { Shield, ShieldAlert, Server, Database, AppWindow, UserCheck, Key, Search, HelpCircle, Activity, Info, Zap } from "lucide-react";
 import { useTheme } from "./ThemeContext";
+import { api } from "../services/api";
 
 export function IdentityGraph() {
   const [nodes, setNodes] = useState<IdentityNode[]>(() => getStoredData("identity_nodes", mockIdentityNodes));
@@ -13,6 +14,18 @@ export function IdentityGraph() {
   const { askConfirm, showToast } = useTheme();
 
   useEffect(() => {
+    // Connect users to backend and log errors
+    api.getIdentityGraph()
+      .then(data => {
+        setNodes(data.nodes);
+        setEdges(data.edges);
+        console.log("Successfully fetched Identity Graph from backend", data);
+      })
+      .catch(err => {
+        console.error("Error fetching Identity Graph from backend:", err);
+        showToast("Error loading dynamic graph. Check console logs.", "error");
+      });
+
     const handleSync = () => {
       setNodes(getStoredData("identity_nodes", mockIdentityNodes));
       setEdges(getStoredData("identity_edges", mockIdentityEdges));
@@ -21,23 +34,28 @@ export function IdentityGraph() {
     return () => window.removeEventListener("privguard_db_sync", handleSync);
   }, []);
 
-  // Position nodes nicely on an interactive 2D coordinate grid (high density, clean layout)
+  // Position nodes nicely on an interactive 2D coordinate grid dynamically from backend data
   const nodePositions = useMemo(() => {
-    return {
-      "node-user-john": { x: 80, y: 110 },
-      "node-role-db-admin": { x: 260, y: 110 },
-      "node-server-db01": { x: 460, y: 150 },
-      "node-db-sql": { x: 680, y: 220 },
-      "node-role-domain-admin": { x: 460, y: 50 },
-      "node-server-dc01": { x: 680, y: 50 },
-      
-      "node-user-elena": { x: 80, y: 280 },
-      "node-app-swift": { x: 300, y: 280 },
-      
-      "node-user-alex": { x: 80, y: 410 },
-      "node-role-dev-standard": { x: 260, y: 410 },
-    };
-  }, []);
+    const positions: Record<string, {x: number, y: number}> = {};
+    let userY = 80;
+    let roleY = 80;
+    let assetY = 120;
+    
+    nodes.forEach(node => {
+      if (node.type === 'user') {
+        positions[node.id] = { x: 80, y: userY };
+        userY += 100;
+      } else if (node.type === 'role') {
+        positions[node.id] = { x: 340, y: roleY };
+        roleY += 120;
+      } else {
+        positions[node.id] = { x: 620, y: assetY };
+        assetY += 160;
+      }
+    });
+    
+    return positions;
+  }, [nodes]);
 
   const filteredNodes = useMemo(() => {
     if (!searchQuery) return mockIdentityNodes;

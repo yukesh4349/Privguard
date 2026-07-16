@@ -57,7 +57,7 @@ export function Dashboard({ onNavigate, onSelectAlert }: DashboardProps) {
       .join(" ");
 
     return (
-      <svg width={width} height={height} className="overflow-visible">
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-16 h-8 opacity-80 overflow-visible">
         <polyline
           fill="none"
           stroke={color}
@@ -86,12 +86,11 @@ export function Dashboard({ onNavigate, onSelectAlert }: DashboardProps) {
           { title: "Average Risk Score", val: averageRiskScore > 0 ? `${averageRiskScore}%` : "0%", change: averageRiskScore > 50 ? "+4.1%" : "Safe", status: "down", color: averageRiskScore > 75 ? "text-brand-critical" : averageRiskScore > 40 ? "text-brand-warning border-amber-500/10 bg-amber-500/5" : "text-brand-success border-emerald-500/10 bg-emerald-500/5", points: [60, 62, averageRiskScore], icon: <TrendingUp className="w-4 h-4 text-brand-warning" /> },
           { title: "Blocked Sessions", val: activeSessionsCount > 0 ? (activeSessionsCount + 138).toString() : "0", change: activeSessionsCount > 0 ? "+48" : "0", status: "up", color: "text-brand-success border-emerald-500/10 bg-emerald-500/5", points: activeSessionsCount > 0 ? [90, 101, 110, 125, 138, 138 + activeSessionsCount] : [0, 0], icon: <Ban className="w-4 h-4 text-brand-success" /> },
           { title: "Protected Assets", val: privilegedUsersCount > 0 ? "14,285" : "0", change: privilegedUsersCount > 0 ? "Verified" : "Offline", status: "up", color: "text-text-main border-border-main bg-background-muted/40", points: privilegedUsersCount > 0 ? [14200, 14250, 14285] : [0, 0], icon: <Server className="w-4 h-4 text-text-muted" /> },
-          { title: "Active Cases", val: activeCasesCount.toString(), change: activeCasesCount > 0 ? "In-Progress" : "Pristine", status: "stable", color: "text-brand-high border-orange-500/10 bg-orange-500/5", points: [3, 2, activeCasesCount], icon: <Layers className="w-4 h-4 text-brand-high" /> },
           { title: "Security Score", val: activeThreatsCount > 0 ? "88%" : "100%", change: activeThreatsCount > 0 ? "Good" : "Max Safe", status: "up", color: "text-brand-success border-emerald-500/20 bg-emerald-500/5", points: [85, 86, 88, activeThreatsCount > 0 ? 88 : 100], icon: <Shield className="w-4 h-4 text-brand-success" /> }
         ].map((card, idx) => (
           <div 
             key={idx} 
-            className={`border rounded-xl p-3 flex flex-col justify-between bg-background-surface shadow-sm ${card.pulse ? "relative overflow-hidden" : ""}`}
+            className={`border rounded-xl p-3 flex flex-col justify-between bg-background-surface shadow-sm relative overflow-hidden`}
           >
             {/* Visual warning flash line */}
             {card.pulse && <div className="absolute top-0 left-0 right-0 h-0.5 bg-brand-critical animate-pulse" />}
@@ -253,7 +252,7 @@ export function Dashboard({ onNavigate, onSelectAlert }: DashboardProps) {
                   <span className="text-[9px] font-mono text-slate-400 block mt-1">Dallas HQ</span>
                 </div>
 
-                <div className="absolute top-1/3 left-1/2 text-center">
+                <div className="absolute top-[40%] left-[42%] text-center">
                   <div className="relative flex justify-center">
                     <div className="w-3.5 h-3.5 bg-brand-critical rounded-full animate-ping absolute"></div>
                     <div className="w-2.5 h-2.5 bg-brand-critical rounded-full"></div>
@@ -269,7 +268,7 @@ export function Dashboard({ onNavigate, onSelectAlert }: DashboardProps) {
                   <span className="text-[9px] font-mono text-brand-warning block mt-1">Singapore</span>
                 </div>
 
-                <div className="absolute top-1/4 right-1/3 text-center">
+                <div className="absolute top-[15%] right-[20%] text-center">
                   <div className="relative flex justify-center">
                     <div className="w-3.5 h-3.5 bg-brand-high rounded-full animate-ping absolute"></div>
                     <div className="w-2.5 h-2.5 bg-brand-high rounded-full"></div>

@@ -24,7 +24,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
     try {
       const data = await import('../services/api').then(m => m.api.login(username, password));
       localStorage.setItem('privguard_token', data.access_token);
-      onLoginSuccess("SOC Lead Analyst", username);
+      localStorage.setItem('privguard_role', data.role);
+      onLoginSuccess(data.role, username);
     } catch (err) {
       setErrorMsg("Invalid credentials. Please verify security enrollment card.");
     } finally {
@@ -247,6 +248,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
         {/* Bottom security warning info */}
         <div className="text-center text-[10px] text-text-muted font-mono max-w-sm mx-auto leading-relaxed mt-6">
           ⚠️ WARNING: This terminal is restricted to authorized bank auditors. Unapproved access queries are immediately logged and forwarded to Cyber Security Operations command centers for physical location tracking.
+          <p className="text-[9px] text-slate-500 mt-2 opacity-60">
+            * This single line explanation is kept prominently displayed to ensure strict regulatory compliance with international financial access guidelines.
+          </p>
         </div>
       </div>
     </div>

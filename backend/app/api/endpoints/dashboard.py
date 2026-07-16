@@ -66,6 +66,72 @@ def get_alerts(
         })
     return results
 
+@router.get("/identity-graph")
+def get_identity_graph(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    users = db.query(User).all()
+    
+    nodes = []
+    edges = []
+    
+    # Base roles/assets
+    roles = set()
+    for user in users:
+        roles.add(user.role.upper() + "_ROLE")
+    
+    for r in roles:
+        nodes.append({
+            "id": f"role-{r}",
+            "label": r,
+            "type": "role",
+            "riskScore": 20,
+            "status": "active"
+        })
+
+    # Assets
+    nodes.append({"id": "asset-db-01", "label": "PROD-DB-CLUSTER-01", "type": "server", "riskScore": 90, "status": "active"})
+    nodes.append({"id": "asset-dc-01", "label": "CORP-DC-01", "type": "server", "riskScore": 30, "status": "active"})
+
+    for user in users:
+        is_compromised = user.is_flagged or user.username == "admin"
+        nodes.append({
+            "id": f"user-{user.id}",
+            "label": f"{user.name} ({user.department})",
+            "type": "user",
+            "riskScore": 95 if is_compromised else 10,
+            "status": "compromised" if is_compromised else "active"
+        })
+        
+        edges.append({
+            "id": f"edge-user-{user.id}-role",
+            "source": f"user-{user.id}",
+            "target": f"role-{user.role.upper()}_ROLE",
+            "label": "Assigned To",
+            "isHighRiskPath": is_compromised
+        })
+        
+        # Connect roles to assets
+        if user.role.lower() == "admin":
+            edges.append({
+                "id": f"edge-role-{user.role}-db",
+                "source": f"role-{user.role.upper()}_ROLE",
+                "target": "asset-db-01",
+                "label": "Full Root Access",
+                "isHighRiskPath": True
+            })
+        else:
+            edges.append({
+                "id": f"edge-role-{user.role}-dc",
+                "source": f"role-{user.role.upper()}_ROLE",
+                "target": "asset-dc-01",
+                "label": "Read Only",
+                "isHighRiskPath": False
+            })
+
+    return {"nodes": nodes, "edges": edges}
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)

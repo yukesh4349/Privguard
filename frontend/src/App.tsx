@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { ThemeProvider, useTheme } from "./components/ThemeContext";
 import { Login } from "./views/Login";
 import { Dashboard } from "./views/Dashboard";
+import { UserDashboard } from "./views/UserDashboard";
 import { ThreatFeed } from "./views/ThreatFeed";
 import { UserAnalytics } from "./views/UserAnalytics";
 import { IdentityGraphView } from "./views/IdentityGraphView";
@@ -24,7 +25,7 @@ function MainAppShell() {
   
   // Login Session state
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('privguard_token')); // Default authenticated based on token
-  const [analystRole, setAnalystRole] = useState("Lead SOC Analyst");
+  const [analystRole, setAnalystRole] = useState(localStorage.getItem('privguard_role') || "admin");
   const [analystName, setAnalystName] = useState("admin_soc_tier3");
 
   // Router navigation view
@@ -53,18 +54,18 @@ function MainAppShell() {
     setActiveView("threats");
   };
 
+  const isAdmin = analystRole.toLowerCase() === "admin" || analystRole.toLowerCase() === "soc lead analyst";
+
   const navigationItems = [
-    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4.5 h-4.5" /> },
-    { id: "threats", label: "Live Monitoring", icon: <ShieldAlert className="w-4.5 h-4.5 text-brand-critical" />, counter: 6 },
-    { id: "analytics", label: "Identity UEBA", icon: <Users className="w-4.5 h-4.5" /> },
-    { id: "identity", label: "Identity Graph", icon: <Layers className="w-4.5 h-4.5" /> },
-    { id: "sessions", label: "Active Sessions", icon: <Radio className="w-4.5 h-4.5 text-emerald-500 animate-pulse" /> },
-    { id: "intel", label: "Threat Intelligence", icon: <Globe className="w-4.5 h-4.5" /> },
-    { id: "cases", label: "Investigations", icon: <FileText className="w-4.5 h-4.5" /> },
-    { id: "reports", label: "Compliance Reports", icon: <ShieldCheck className="w-4.5 h-4.5 text-blue-500" /> },
-    { id: "audit", label: "Audit Logs Ledger", icon: <FileText className="w-4.5 h-4.5" /> },
-    { id: "settings", label: "System Settings", icon: <SettingsIcon className="w-4.5 h-4.5" /> },
-  ];
+    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4.5 h-4.5" />, roles: ["admin", "soc lead analyst", "hr", "finance", "dev", "user"] },
+    { id: "threats", label: "Live Monitoring", icon: <ShieldAlert className="w-4.5 h-4.5 text-brand-critical" />, counter: 6, roles: ["admin", "soc lead analyst"] },
+    { id: "analytics", label: "Identity UEBA", icon: <Users className="w-4.5 h-4.5" />, roles: ["admin", "soc lead analyst", "hr"] },
+    { id: "identity", label: "Identity Graph", icon: <Layers className="w-4.5 h-4.5" />, roles: ["admin", "soc lead analyst"] },
+    { id: "sessions", label: "Active Sessions", icon: <Radio className="w-4.5 h-4.5 text-emerald-500 animate-pulse" />, roles: ["admin", "soc lead analyst"] },
+    { id: "intel", label: "Threat Intelligence", icon: <Globe className="w-4.5 h-4.5" />, roles: ["admin", "soc lead analyst"] },
+    { id: "reports", label: "Compliance Reports", icon: <ShieldCheck className="w-4.5 h-4.5 text-blue-500" />, roles: ["admin", "soc lead analyst", "finance", "hr"] },
+    { id: "settings", label: "System Settings", icon: <SettingsIcon className="w-4.5 h-4.5" />, roles: ["admin", "soc lead analyst"] },
+  ].filter(item => item.roles.includes(analystRole.toLowerCase()));
 
   // Helper to resolve dynamic page header title
   const getViewTitle = () => {
@@ -310,12 +311,7 @@ function MainAppShell() {
           
           {/* Workspaces router mapping */}
           <div className="h-full">
-            {activeView === "dashboard" && (
-              <Dashboard 
-                onNavigate={setActiveView} 
-                onSelectAlert={handleDashboardAlertClick} 
-              />
-            )}
+            {activeView === "dashboard" && (isAdmin ? <Dashboard onNavigate={setActiveView} onSelectAlert={handleDashboardAlertClick} /> : <UserDashboard />)}
             {activeView === "threats" && (
               <ThreatFeed 
                 selectedAlertId={selectedAlertId} 
