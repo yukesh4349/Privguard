@@ -68,5 +68,11 @@ export const api = {
     const response = await fetch(`${API_BASE}/dashboard/identity-graph`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch identity graph');
     return response.json();
+  },
+  
+  getUserActivities: async (username: string) => {
+    const response = await fetch(`${API_BASE}/dashboard/user-activities/${username}`, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch user activities');
+    return response.json();
   }
 };

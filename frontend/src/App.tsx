@@ -3,6 +3,7 @@ import { ThemeProvider, useTheme } from "./components/ThemeContext";
 import { Login } from "./views/Login";
 import { Dashboard } from "./views/Dashboard";
 import { UserDashboard } from "./views/UserDashboard";
+import { SecurityPolicies } from "./views/SecurityPolicies";
 import { ThreatFeed } from "./views/ThreatFeed";
 import { UserAnalytics } from "./views/UserAnalytics";
 import { IdentityGraphView } from "./views/IdentityGraphView";
@@ -63,6 +64,7 @@ function MainAppShell() {
     { id: "identity", label: "Identity Graph", icon: <Layers className="w-4.5 h-4.5" />, roles: ["admin", "soc lead analyst"] },
     { id: "sessions", label: "Active Sessions", icon: <Radio className="w-4.5 h-4.5 text-emerald-500 animate-pulse" />, roles: ["admin", "soc lead analyst"] },
     { id: "intel", label: "Threat Intelligence", icon: <Globe className="w-4.5 h-4.5" />, roles: ["admin", "soc lead analyst"] },
+    { id: "policies", label: "Security Policies", icon: <Shield className="w-4.5 h-4.5 text-brand-primary" />, roles: ["admin", "soc lead analyst"] },
     { id: "reports", label: "Compliance Reports", icon: <ShieldCheck className="w-4.5 h-4.5 text-blue-500" />, roles: ["admin", "soc lead analyst", "finance", "hr"] },
     { id: "settings", label: "System Settings", icon: <SettingsIcon className="w-4.5 h-4.5" />, roles: ["admin", "soc lead analyst"] },
   ].filter(item => item.roles.includes(analystRole.toLowerCase()));
@@ -319,6 +321,7 @@ function MainAppShell() {
                 onSelectAlert={setSelectedAlertId}
               />
             )}
+            {activeView === "policies" && <SecurityPolicies />}
             {activeView === "analytics" && <UserAnalytics />}
             {activeView === "identity" && <IdentityGraphView />}
             {activeView === "sessions" && <ActiveSessions />}

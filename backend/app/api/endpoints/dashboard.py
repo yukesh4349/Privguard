@@ -66,6 +66,22 @@ def get_alerts(
         })
     return results
 
+@router.get("/user-activities/{username}")
+def get_user_activities(
+    username: str,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    events = db.query(ThreatEvent).filter(ThreatEvent.username == username).order_by(ThreatEvent.timestamp.desc()).limit(20).all()
+    results = []
+    for e in events:
+        results.append({
+            "action": e.event_type,
+            "time": e.timestamp.isoformat() if e.timestamp else "",
+            "system": e.target_system or "Unknown"
+        })
+    return results
+
 @router.get("/identity-graph")
 def get_identity_graph(
     db: Session = Depends(deps.get_db),

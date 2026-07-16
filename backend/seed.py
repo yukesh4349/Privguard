@@ -33,30 +33,31 @@ def seed():
     
     db.commit()
 
-    # Check if we have events, if not create some mock events
-    existing_events = db.query(ThreatEvent).count()
-    if existing_events == 0:
-        event_types = ["Failed Login", "Unauthorized Access", "Data Exfiltration", "Privilege Escalation"]
-        target_systems = ["Active Directory", "AWS S3", "Customer Database", "Finance Portal"]
-        users = ["alice", "bob", "dave"]
+    # Force generation of the 18 specific module events
+    event_types_18 = [
+        "HONEY_FILE_OPENED", "IMPOSSIBLE_TRAVEL", "DLP_USB_BLOCK", "BIOMETRIC_FAIL", 
+        "SCREEN_CAPTURE_DETECTED", "VPN_PROXY_DETECTED", "UNAUTHORIZED_DEVICE", "AI_BEHAVIOR_ANOMALY",
+        "OUT_OF_HOURS_ACCESS", "MALICIOUS_LINK_BLOCKED", "SENSITIVE_DB_ACCESS", "DLP_EMAIL_FORWARD",
+        "RANSOMWARE_SIGNATURE_DETECTED", "GEO_LOCATION_VIOLATION", "PRIVILEGED_CONFIG_CHANGE"
+    ]
+    target_systems = ["Active Directory", "AWS S3", "Customer Database", "Finance Portal", "Workday", "admin_passwords.txt", "Local USB Port", "Cisco VPN"]
+    users = ["alice", "bob", "dave", "admin", "hr", "dev", "finance"]
+    
+    for _ in range(30):
+        event = ThreatEvent(
+            id=str(uuid.uuid4()),
+            session_id=f"SES-{random.randint(10000, 99999)}",
+            username=random.choice(users),
+            timestamp=datetime.utcnow() - timedelta(minutes=random.randint(1, 1440)),
+            event_type=random.choice(event_types_18),
+            target_system=random.choice(target_systems),
+            composite_risk_score=random.uniform(70.0, 99.0),
+            risk_band=random.choice(["CRITICAL", "HIGH", "MEDIUM"])
+        )
+        db.add(event)
         
-        for _ in range(15):
-            event = ThreatEvent(
-                id=str(uuid.uuid4()),
-                session_id=f"SES-{random.randint(10000, 99999)}",
-                username=random.choice(users),
-                timestamp=datetime.utcnow() - timedelta(minutes=random.randint(1, 1440)),
-                event_type=random.choice(event_types),
-                target_system=random.choice(target_systems),
-                composite_risk_score=random.uniform(30.0, 95.0),
-                risk_band=random.choice(["CRITICAL", "HIGH", "MEDIUM", "LOW"])
-            )
-            db.add(event)
-            
-        db.commit()
-        print("Database seeded with mock events.")
-
-    print("Database seeded successfully with users.")
+    db.commit()
+    print("Database seeded with 18 enterprise module mock events.")
 
 if __name__ == "__main__":
     seed()

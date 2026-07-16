@@ -1,5 +1,7 @@
+import React, { useEffect, useState } from 'react';
 import { Shield, ShieldAlert, CheckCircle, Clock, Smartphone, Globe, Lock, Database, Code, FileText, Banknote, Activity } from "lucide-react";
 import { useTheme } from "../components/ThemeContext";
+import { api } from "../services/api";
 
 export function UserDashboard() {
   const { theme } = useTheme();
@@ -43,33 +45,24 @@ export function UserDashboard() {
     }
   };
 
-  const getRecentActivities = () => {
-    switch(currentRole) {
-      case "hr":
-        return [
-          { action: "Exported Q3 Payroll Report", time: "2 hours ago", system: "HR Portal" },
-          { action: "Created new employee onboarding profile", time: "5 hours ago", system: "Workday" }
-        ];
-      case "dev":
-        return [
-          { action: "Pushed 3 commits to `main`", time: "1 hour ago", system: "GitHub" },
-          { action: "Queried 500 rows from users table", time: "4 hours ago", system: "Production DB" }
-        ];
-      case "finance":
-        return [
-          { action: "Approved wire transfer #892", time: "30 mins ago", system: "Oracle Financials" },
-          { action: "Downloaded quarterly tax statements", time: "1 day ago", system: "Oracle Financials" }
-        ];
-      default:
-        return [
-          { action: "Logged into Corporate VPN", time: "Today at 08:42 AM", system: "Cisco AnyConnect" },
-          { action: "Read 'Company Holiday Policy'", time: "Yesterday", system: "Internal Wiki" }
-        ];
-    }
-  };
+  const [activities, setActivities] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        const username = localStorage.getItem('privguard_username');
+        if (username) {
+          const data = await api.getUserActivities(username);
+          setActivities(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user activities", err);
+      }
+    };
+    fetchActivities();
+  }, []);
 
   const privileges = getRolePrivileges();
-  const activities = getRecentActivities();
 
   return (
     <div id="user-dashboard-view-container" className="space-y-6">
