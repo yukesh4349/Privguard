@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        // Auth check before page loads
+        const activeUserData = localStorage.getItem('privguard_user');
+        if (!activeUserData) {
+            window.location.href = '/';
+        } else {
+            const user = JSON.parse(activeUserData);
+            if (user.role !== 'admin') {
+                window.location.href = '/static/user.html';
+            }
+        }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="PrivGuard — AI-Driven Insider Threat Detection Platform with real-time UEBA, anomaly detection, and automated response.">
@@ -8,6 +20,7 @@
     <link rel="stylesheet" href="/static/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 </head>
+
 <body>
     <div class="app-container">
 
@@ -28,7 +41,11 @@
                 <button class="btn-simulate" id="btnSimulate" onclick="runSimulation()">
                     ⚡ Simulate Attack
                 </button>
+                <button class="btn-logout" onclick="handleLogout()" style="margin-left: 10px;">
+                    Sign Out
+                </button>
             </div>
+
         </header>
 
         <!-- Stats Cards -->

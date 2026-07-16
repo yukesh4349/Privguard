@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — PrivGuard Portal</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+    <style>
+        .login-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 120px);
+            padding: 20px;
+        }
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-glass-border);
+            border-radius: var(--radius);
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            backdrop-filter: blur(25px);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            animation: cardFade 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes cardFade {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+        }
+        .login-logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-logo .icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: inline-block;
+            filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.3));
+        }
+        .login-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .login-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--bg-glass-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border: none;
+            border-radius: var(--radius-sm);
+            color: white;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+            margin-top: 10px;
+        }
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
+        }
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        .login-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--color-critical);
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            margin-bottom: 20px;
+            display: none;
+            animation: shake 0.3s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .credentials-tip {
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            font-size: 0.75rem;
+        }
+        .credentials-title {
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .credentials-table {
+            width: 100%;
+            border-collapse: collapse;
+            color: var(--text-muted);
+        }
+        .credentials-table td {
+            padding: 3px 0;
+            font-size: 0.72rem;
+        }
+        .credentials-tag {
+            background: var(--bg-glass-border);
+            padding: 2px 6px;
+            border-radius: var(--radius-xs);
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="login-wrapper">
+            <div class="login-card">
+                <div class="login-logo">
+                    <span class="icon">🛡️</span>
+                    <h2 class="login-title">PrivGuard Portal</h2>
+                    <p class="login-subtitle">Sign in to access your platform scope</p>
+                </div>
+
+                <div class="login-error" id="loginError"></div>
+
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="username">Username</label>
+                        <input class="form-control" type="text" id="username" placeholder="e.g. admin, alice, eve" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password</label>
+                        <input class="form-control" type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+                    </div>
+                    <button class="btn-login" type="submit" id="btnLogin">Sign In</button>
+                </form>
+
+                <div class="credentials-tip">
+                    <div class="credentials-title">📌 Quick Testing Credentials</div>
+                    <table class="credentials-table">
+                        <tr>
+                            <td><strong>Admin Dashboard:</strong></td>
+                            <td><span class="credentials-tag">admin</span> / <span class="credentials-tag">admin123</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Employee (Alice):</strong></td>
+                            <td><span class="credentials-tag">alice</span> / <span class="credentials-tag">engineering123</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Threat Actor (Eve):</strong></td>
+                            <td><span class="credentials-tag">eve</span> / <span class="credentials-tag">compromised123</span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if already logged in and redirect
+        const activeUser = localStorage.getItem('privguard_user');
+        if (activeUser) {
+            try {
+                const user = JSON.parse(activeUser);
+                if (user.role === 'admin') {
+                    window.location.href = '/static/index.html';
+                } else {
+                    window.location.href = '/static/user.html';
+                }
+            } catch (e) {
+                localStorage.removeItem('privguard_user');
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const errorDiv = document.getElementById('loginError');
+            const btn = document.getElementById('btnLogin');
+
+            errorDiv.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Authenticating...';
+
+            try {
+                const response = await fetch('/api/v1/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: usernameInput.value,
+                        password: passwordInput.value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Login failed');
+                }
+
+                // Store session info
+                localStorage.setItem('privguard_user', JSON.stringify(data));
+
+                // Redirect based on role
+                if (data.role === 'admin') {
+                    window.location.href = '/static/index.html';
+                } else {
+                    window.location.href = '/static/user.html';
+                }
+
+            } catch (err) {
+                errorDiv.textContent = err.message;
+                errorDiv.style.display = 'block';
+                // Trigger shake animation
+                errorDiv.style.animation = 'none';
+                errorDiv.offsetHeight; /* trigger reflow */
+                errorDiv.style.animation = null; 
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+            }
+        }
+    </script>
+</body>
+</html>

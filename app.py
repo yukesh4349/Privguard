@@ -2,12 +2,44 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from models import EventModel, RiskScoreResponse, AlertDetail, DashboardStats, SimulationResponse
+from models import EventModel, RiskScoreResponse, AlertDetail, DashboardStats, SimulationResponse, LoginRequest, LoginResponse
 from features import FeatureExtractor
 from ml_models import IsolationForestAnomalyDetector
 from simulator import generate_full_simulation
 from uuid import UUID
 from datetime import datetime
+import uuid
+
+# User Credentials database
+CREDENTIALS_DB = {
+    "admin": {"password": "admin123", "name": "Security Admin", "department": "SecOps", "role": "admin"},
+    "alice": {"password": "engineering123", "name": "Alice Chen", "department": "Engineering", "role": "user"},
+    "bob": {"password": "finance123", "name": "Bob Martinez", "department": "Finance", "role": "user"},
+    "carol": {"password": "hr123", "name": "Carol Singh", "department": "HR", "role": "user"},
+    "dave": {"password": "admin123", "name": "Dave Wilson", "department": "IT-Admin", "role": "user"},
+    "eve": {"password": "compromised123", "name": "Eve Nakamura", "department": "Contractor", "role": "user"}
+}
+
+# Session mapping: active session token -> user profile info
+SESSION_USER_MAP = {}
+
+def _resolve_user(session_id: str) -> tuple[str, str]:
+    """Helper to resolve name and department from session_id or database."""
+    if session_id in SESSION_USER_MAP:
+        user = SESSION_USER_MAP[session_id]
+        return user["name"], user["department"]
+    
+    # Fallback to check simulator sessions
+    for username, info in CREDENTIALS_DB.items():
+        if info["role"] == "admin":
+            continue
+        for idx in range(30):
+            sim_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, f"{username}-session-{idx}")
+            if str(sim_uuid) == session_id:
+                return info["name"], info["department"]
+                
+    return "Unknown", "Unknown"
+
 
 app = FastAPI(
     title="PrivGuard — Insider Threat Detection Platform",
@@ -41,17 +73,27 @@ def _score_event(event: EventModel) -> tuple[float, float, float, float, str, st
     
     # 3. Rule Engine evaluation
     rule_score = 0.0
-    if event.bytes_transferred and event.bytes_transferred > 10000:
+    if event.bytes_transferred and event.bytes_transferred > 500000:
+        rule_score = 100.0
+    elif event.bytes_transferred and event.bytes_transferred > 10000:
         rule_score = 80.0
+        
     if event.event_type in ("privilege_grant", "config_change"):
-        rule_score = max(rule_score, 60.0)
-    if event.command_text and any(cmd in event.command_text.lower() for cmd in ["mysqldump", "chmod 777", "net user", "scp", "curl -x post"]):
         rule_score = max(rule_score, 70.0)
+        
+    if event.command_text and any(cmd in event.command_text.lower() for cmd in ["mysqldump", "chmod 777", "net user", "scp", "curl -x post"]):
+        if "chmod 777" in event.command_text.lower():
+            rule_score = 100.0
+        else:
+            rule_score = max(rule_score, 80.0)
         
     # 4. Graph Context evaluation (enhanced mock)
     graph_score = 0.0
     if event.target_system and any(s in event.target_system for s in ["tier0", "dc-master", "secrets-vault", "domain-controller"]):
-        graph_score = 50.0
+        if "dc-master" in event.target_system or "tier0" in event.target_system:
+            graph_score = 90.0
+        else:
+            graph_score = 60.0
     
     # 5. Composite Score
     composite = (0.35 * rule_score) + (0.45 * anomaly_score) + (0.20 * graph_score)
@@ -72,6 +114,7 @@ def _score_event(event: EventModel) -> tuple[float, float, float, float, str, st
     return composite, anomaly_score, rule_score, graph_score, risk_band, action
 
 
+
 @app.post("/api/v1/events/ingest", response_model=RiskScoreResponse)
 async def ingest_event(event: EventModel):
     """
@@ -84,12 +127,14 @@ async def ingest_event(event: EventModel):
                    f"Rule Score: {rule_score:.1f}. "
                    f"Action assigned based on {risk_band} risk band.")
     
+    user_name, department = _resolve_user(str(event.session_id))
+
     # Store in alert store
     alert_store.append(AlertDetail(
         event_id=str(event.event_id),
         timestamp=event.timestamp.isoformat(),
-        user_name="Unknown",
-        department="Unknown",
+        user_name=user_name,
+        department=department,
         event_type=event.event_type,
         target_system=event.target_system or "N/A",
         target_object=event.target_object or "N/A",
@@ -103,6 +148,7 @@ async def ingest_event(event: EventModel):
         explanation=explanation,
         scenario="live"
     ))
+
         
     return RiskScoreResponse(
         event_id=event.event_id,
@@ -208,12 +254,37 @@ async def health_check():
     return {"status": "ok", "message": "PrivGuard Insider Threat Engine is running."}
 
 
+@app.post("/api/v1/login", response_model=LoginResponse)
+async def login(req: LoginRequest):
+    username = req.username.lower().strip()
+    if username not in CREDENTIALS_DB or CREDENTIALS_DB[username]["password"] != req.password:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    user_info = CREDENTIALS_DB[username]
+    session_id = str(uuid.uuid4())
+    SESSION_USER_MAP[session_id] = {
+        "name": user_info["name"],
+        "department": user_info["department"],
+        "role": user_info["role"]
+    }
+    
+    return LoginResponse(
+        username=username,
+        name=user_info["name"],
+        department=user_info["department"],
+        role=user_info["role"],
+        token=session_id
+    )
+
+
 # Serve frontend — mount AFTER API routes so /api paths take priority
 @app.get("/")
-async def serve_index():
-    return FileResponse("static/index.html")
+async def serve_login():
+    return FileResponse("static/login.html")
+
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 
 if __name__ == "__main__":

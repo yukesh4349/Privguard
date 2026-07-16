@@ -30,6 +30,18 @@ class AlertModel(BaseModel):
 
 # --- New models for the dashboard ---
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class LoginResponse(BaseModel):
+    username: str
+    name: str
+    department: str
+    role: str
+    token: str
+
+
 class AlertDetail(BaseModel):
     """Full alert detail for the dashboard threat feed."""
     event_id: str

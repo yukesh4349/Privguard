@@ -513,3 +513,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Periodic health check
     setInterval(checkHealth, 10000);
 });
+
+function handleLogout() {
+    localStorage.removeItem('privguard_user');
+    window.location.href = '/';
+}
+
