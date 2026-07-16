@@ -1,5 +1,8 @@
 import numpy as np
-from ml_models import IsolationForestAnomalyDetector
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'backend')))
+from app.ml.ml_models import IsolationForestAnomalyDetector
 
 def generate_synthetic_data():
     print("Generating synthetic data...")

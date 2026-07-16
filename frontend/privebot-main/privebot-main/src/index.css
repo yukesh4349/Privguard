@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-primary: var(--primary);
+  --color-brand-success: var(--success);
+  --color-brand-warning: var(--warning);
+  --color-brand-high: var(--high-risk);
+  --color-brand-critical: var(--critical);
+  
+  --color-background-main: var(--bg-main);
+  --color-background-surface: var(--bg-surface);
+  --color-background-muted: var(--bg-muted);
+  --color-border-main: var(--border-main);
+  
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+}
+
+:root {
+  color-scheme: light;
+  
+  /* Color System */
+  --primary: #2563EB;
+  --success: #16A34A;
+  --warning: #D97706;
+  --high-risk: #EA580C;
+  --critical: #DC2626;
+  
+  /* Theme Light */
+  --bg-main: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-muted: #F1F5F9;
+  --border-main: #E2E8F0;
+  
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --text-inverse: #FFFFFF;
+}
+
+.dark {
+  color-scheme: dark;
+  
+  /* Theme Dark */
+  --bg-main: #020617;
+  --bg-surface: #0B0F19;
+  --bg-muted: #151F32;
+  --border-main: #1E293B;
+  
+  --text-main: #F1F5F9;
+  --text-muted: #94A3B8;
+  --text-inverse: #0F172A;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Custom Scrollbars to match SOC styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-main);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Custom classes for micro-interactions */
+.pulse-glow-critical {
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.4);
+  animation: pulse-crit 2s infinite ease-in-out;
+}
+
+.pulse-glow-high {
+  box-shadow: 0 0 12px rgba(234, 88, 12, 0.4);
+  animation: pulse-high 2s infinite ease-in-out;
+}
+
+.pulse-glow-success {
+  box-shadow: 0 0 12px rgba(22, 163, 74, 0.4);
+  animation: pulse-succ 2s infinite ease-in-out;
+}
+
+@keyframes pulse-crit {
+  0%, 100% { box-shadow: 0 0 8px rgba(220, 38, 38, 0.3); }
+  50% { box-shadow: 0 0 16px rgba(220, 38, 38, 0.6); }
+}
+
+@keyframes pulse-high {
+  0%, 100% { box-shadow: 0 0 8px rgba(234, 88, 12, 0.3); }
+  50% { box-shadow: 0 0 16px rgba(234, 88, 12, 0.6); }
+}
+
+@keyframes pulse-succ {
+  0%, 100% { box-shadow: 0 0 8px rgba(22, 163, 74, 0.3); }
+  50% { box-shadow: 0 0 16px rgba(22, 163, 74, 0.6); }
+}
+
+/* High Density Table & Typography tweaks */
+.table-compact th, .table-compact td {
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+.font-mono-dense {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: -0.02em;
+}

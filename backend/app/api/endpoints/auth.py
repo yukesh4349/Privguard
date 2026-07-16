@@ -22,7 +22,7 @@ def login_access_token(
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    if not security.verify_password(form_data.password, user.hashed_password):
+    if not security.verify_password(form_data.password, str(user.hashed_password)):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")

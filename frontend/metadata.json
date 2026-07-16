@@ -1,0 +1,6 @@
+{
+  "name": "PrivGuard",
+  "description": "Enterprise-grade AI-Powered Privileged Access Misuse & Insider Threat Detection Platform for Banks, Government, and Critical Infrastructure.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

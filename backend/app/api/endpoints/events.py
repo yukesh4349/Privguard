@@ -101,7 +101,7 @@ def ingest_event(
     if band in ["High", "Critical"]:
         user = db.query(User).filter(User.username == event.username).first()
         if user:
-            user.is_flagged = True
+            user.is_flagged = True  # type: ignore
     
     db.commit()
     
