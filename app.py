@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from models import EventModel, RiskScoreResponse, AlertDetail, DashboardStats, SimulationResponse, LoginRequest, LoginResponse
+from models import EventModel, RiskScoreResponse, AlertDetail, DashboardStats, SimulationResponse, LoginRequest, LoginResponse, FlaggedUser
 from features import FeatureExtractor
 from ml_models import IsolationForestAnomalyDetector
 from simulator import generate_full_simulation
@@ -10,18 +10,57 @@ from uuid import UUID
 from datetime import datetime
 import uuid
 
-# User Credentials database
+# User Credentials database — common password: 123456
 CREDENTIALS_DB = {
-    "admin": {"password": "admin123", "name": "Security Admin", "department": "SecOps", "role": "admin"},
-    "alice": {"password": "engineering123", "name": "Alice Chen", "department": "Engineering", "role": "user"},
-    "bob": {"password": "finance123", "name": "Bob Martinez", "department": "Finance", "role": "user"},
-    "carol": {"password": "hr123", "name": "Carol Singh", "department": "HR", "role": "user"},
-    "dave": {"password": "admin123", "name": "Dave Wilson", "department": "IT-Admin", "role": "user"},
-    "eve": {"password": "compromised123", "name": "Eve Nakamura", "department": "Contractor", "role": "user"}
+    "admin": {"password": "123456", "name": "Security Admin", "department": "SecOps", "role": "admin"},
+    "alice": {"password": "123456", "name": "Alice Chen", "department": "Engineering", "role": "user"},
+    "bob": {"password": "123456", "name": "Bob Martinez", "department": "Finance", "role": "user"},
+    "carol": {"password": "123456", "name": "Carol Singh", "department": "HR", "role": "user"},
+    "dave": {"password": "123456", "name": "Dave Wilson", "department": "IT-Admin", "role": "user"},
+    "eve": {"password": "123456", "name": "Eve Nakamura", "department": "Contractor", "role": "user"}
 }
 
 # Session mapping: active session token -> user profile info
 SESSION_USER_MAP = {}
+
+# --- Anomalous Behavior Tracking ---
+# Tracks failed login attempts per username
+FAILED_LOGIN_TRACKER: dict[str, list[dict]] = {}
+
+# Tracks users flagged as DANGEROUS
+# Key: username, Value: dict with flag details
+FLAGGED_USERS: dict[str, dict] = {}
+
+# Maps session tokens back to usernames
+SESSION_TO_USERNAME: dict[str, str] = {}
+
+DANGER_THRESHOLD_FAILED_LOGINS = 2  # flag after 2 failed attempts
+
+
+def flag_user(username: str, reason: str):
+    """Flag a user as DANGEROUS with a given reason."""
+    if username not in CREDENTIALS_DB or CREDENTIALS_DB[username]["role"] == "admin":
+        return  # Don't flag admin or unknown users
+    
+    now = datetime.utcnow().isoformat()
+    if username not in FLAGGED_USERS:
+        user_info = CREDENTIALS_DB[username]
+        FLAGGED_USERS[username] = {
+            "username": username,
+            "name": user_info["name"],
+            "department": user_info["department"],
+            "status": "DANGEROUS",
+            "failed_login_attempts": 0,
+            "anomalous_actions": 0,
+            "reasons": [],
+            "last_flagged_at": now
+        }
+    
+    entry = FLAGGED_USERS[username]
+    entry["status"] = "DANGEROUS"
+    entry["last_flagged_at"] = now
+    if reason not in entry["reasons"]:
+        entry["reasons"].append(reason)
 
 def _resolve_user(session_id: str) -> tuple[str, str]:
     """Helper to resolve name and department from session_id or database."""
@@ -128,6 +167,17 @@ async def ingest_event(event: EventModel):
                    f"Action assigned based on {risk_band} risk band.")
     
     user_name, department = _resolve_user(str(event.session_id))
+
+    # --- Anomalous behavior tracking ---
+    # Resolve username from session token
+    session_str = str(event.session_id)
+    acting_username = SESSION_TO_USERNAME.get(session_str, None)
+    
+    if acting_username and risk_band in ("High", "Critical"):
+        reason = f"Dangerous action: {event.event_type} on {event.target_system or 'unknown'} (Risk: {risk_band}, Score: {composite:.1f})"
+        flag_user(acting_username, reason)
+        if acting_username in FLAGGED_USERS:
+            FLAGGED_USERS[acting_username]["anomalous_actions"] = FLAGGED_USERS[acting_username].get("anomalous_actions", 0) + 1
 
     # Store in alert store
     alert_store.append(AlertDetail(
@@ -257,9 +307,41 @@ async def health_check():
 @app.post("/api/v1/login", response_model=LoginResponse)
 async def login(req: LoginRequest):
     username = req.username.lower().strip()
-    if username not in CREDENTIALS_DB or CREDENTIALS_DB[username]["password"] != req.password:
+    
+    # Check if user account has been removed
+    if username not in CREDENTIALS_DB:
+        # Track failed attempt for unknown user (might be trying random usernames)
+        if username not in FAILED_LOGIN_TRACKER:
+            FAILED_LOGIN_TRACKER[username] = []
+        FAILED_LOGIN_TRACKER[username].append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "reason": "unknown_username"
+        })
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
+    # Check password
+    if CREDENTIALS_DB[username]["password"] != req.password:
+        # Track failed login attempt
+        if username not in FAILED_LOGIN_TRACKER:
+            FAILED_LOGIN_TRACKER[username] = []
+        FAILED_LOGIN_TRACKER[username].append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "reason": "wrong_password"
+        })
+        
+        attempt_count = len(FAILED_LOGIN_TRACKER[username])
+        
+        # Flag user as DANGEROUS after threshold
+        if attempt_count >= DANGER_THRESHOLD_FAILED_LOGINS:
+            flag_user(username, f"Multiple failed login attempts ({attempt_count} attempts)")
+            FLAGGED_USERS[username]["failed_login_attempts"] = attempt_count
+        
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid username or password (attempt {attempt_count})"
+        )
+    
+    # Check if the user is flagged/removed
     user_info = CREDENTIALS_DB[username]
     session_id = str(uuid.uuid4())
     SESSION_USER_MAP[session_id] = {
@@ -267,6 +349,11 @@ async def login(req: LoginRequest):
         "department": user_info["department"],
         "role": user_info["role"]
     }
+    SESSION_TO_USERNAME[session_id] = username
+    
+    # Clear failed attempts on successful login (but keep flag if already flagged)
+    if username in FAILED_LOGIN_TRACKER:
+        FAILED_LOGIN_TRACKER[username] = []
     
     return LoginResponse(
         username=username,
@@ -275,6 +362,62 @@ async def login(req: LoginRequest):
         role=user_info["role"],
         token=session_id
     )
+
+
+# --- Flagged Users & Admin Endpoints ---
+
+@app.get("/api/v1/flagged-users", response_model=list[FlaggedUser])
+async def get_flagged_users():
+    """Return all users flagged as DANGEROUS."""
+    return [
+        FlaggedUser(**data)
+        for data in FLAGGED_USERS.values()
+        if data["status"] == "DANGEROUS"
+    ]
+
+
+@app.delete("/api/v1/users/{username}")
+async def remove_user(username: str):
+    """Admin endpoint: permanently remove a user account."""
+    username = username.lower().strip()
+    if username not in CREDENTIALS_DB:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
+    if CREDENTIALS_DB[username]["role"] == "admin":
+        raise HTTPException(status_code=403, detail="Cannot remove admin account")
+    
+    # Remove from credentials DB
+    removed_info = CREDENTIALS_DB.pop(username)
+    
+    # Remove from flagged users if present
+    FLAGGED_USERS.pop(username, None)
+    
+    # Invalidate all sessions for this user
+    sessions_to_remove = [sid for sid, uname in SESSION_TO_USERNAME.items() if uname == username]
+    for sid in sessions_to_remove:
+        SESSION_TO_USERNAME.pop(sid, None)
+        SESSION_USER_MAP.pop(sid, None)
+    
+    return {
+        "status": "removed",
+        "username": username,
+        "name": removed_info["name"],
+        "message": f"User '{username}' has been permanently removed from the system."
+    }
+
+
+@app.post("/api/v1/users/{username}/unflag")
+async def unflag_user(username: str):
+    """Admin endpoint: clear the DANGEROUS flag from a user."""
+    username = username.lower().strip()
+    if username not in FLAGGED_USERS:
+        raise HTTPException(status_code=404, detail=f"User '{username}' is not flagged")
+    
+    FLAGGED_USERS[username]["status"] = "SAFE"
+    FLAGGED_USERS[username]["reasons"] = []
+    FLAGGED_USERS[username]["failed_login_attempts"] = 0
+    FLAGGED_USERS[username]["anomalous_actions"] = 0
+    
+    return {"status": "unflagged", "username": username, "message": f"User '{username}' has been cleared."}
 
 
 # Serve frontend — mount AFTER API routes so /api paths take priority

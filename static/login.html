@@ -192,23 +192,54 @@
                     <table class="credentials-table">
                         <tr>
                             <td><strong>Admin Dashboard:</strong></td>
-                            <td><span class="credentials-tag">admin</span> / <span class="credentials-tag">admin123</span></td>
+                            <td><span class="credentials-tag">admin</span> / <span class="credentials-tag">123456</span></td>
                         </tr>
                         <tr>
                             <td><strong>Employee (Alice):</strong></td>
-                            <td><span class="credentials-tag">alice</span> / <span class="credentials-tag">engineering123</span></td>
+                            <td><span class="credentials-tag">alice</span> / <span class="credentials-tag">123456</span></td>
                         </tr>
                         <tr>
                             <td><strong>Threat Actor (Eve):</strong></td>
-                            <td><span class="credentials-tag">eve</span> / <span class="credentials-tag">compromised123</span></td>
+                            <td><span class="credentials-tag">eve</span> / <span class="credentials-tag">123456</span></td>
                         </tr>
                     </table>
+                    <div style="margin-top: 10px; font-size: 0.7rem; color: var(--text-muted);">
+                        ⚠️ Common password for all accounts: <strong style="color: var(--accent-cyan);">123456</strong>
+                    </div>
+                </div>
+
+                <!-- Flagged Warning Banner -->
+                <div class="login-flagged-warning" id="flaggedWarning" style="display: none;">
+                    <div style="font-size: 1.5rem; margin-bottom: 8px;">🚨</div>
+                    <div style="font-weight: 700; color: var(--color-critical); margin-bottom: 4px;">ACCOUNT FLAGGED</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                        Your login attempts have been recorded. Continued failed attempts will flag your account as <strong style="color: var(--color-critical);">DANGEROUS</strong> and may result in account removal by the security admin.
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <style>
+        .login-flagged-warning {
+            margin-top: 20px;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            text-align: center;
+            animation: warningPulse 2s infinite;
+        }
+        @keyframes warningPulse {
+            0%, 100% { border-color: rgba(239, 68, 68, 0.25); }
+            50% { border-color: rgba(239, 68, 68, 0.6); }
+        }
+    </style>
+
     <script>
+        // Track failed attempts client-side for UI feedback
+        let failedAttempts = parseInt(localStorage.getItem('privguard_failed_attempts') || '0');
+
         // Check if already logged in and redirect
         const activeUser = localStorage.getItem('privguard_user');
         if (activeUser) {
@@ -222,6 +253,11 @@
             } catch (e) {
                 localStorage.removeItem('privguard_user');
             }
+        }
+
+        // Show warning if previous failed attempts exist
+        if (failedAttempts >= 2) {
+            document.getElementById('flaggedWarning').style.display = 'block';
         }
 
         async function handleLogin(e) {
@@ -248,8 +284,19 @@
                 const data = await response.json();
 
                 if (!response.ok) {
+                    // Track failed attempt
+                    failedAttempts++;
+                    localStorage.setItem('privguard_failed_attempts', failedAttempts.toString());
+
+                    if (failedAttempts >= 2) {
+                        document.getElementById('flaggedWarning').style.display = 'block';
+                    }
+
                     throw new Error(data.detail || 'Login failed');
                 }
+
+                // Success — clear failed attempt counter
+                localStorage.setItem('privguard_failed_attempts', '0');
 
                 // Store session info
                 localStorage.setItem('privguard_user', JSON.stringify(data));
@@ -262,7 +309,7 @@
                 }
 
             } catch (err) {
-                errorDiv.textContent = err.message;
+                errorDiv.textContent = `⛔ ${err.message}` + (failedAttempts >= 2 ? ' — Your account may be flagged as DANGEROUS.' : '');
                 errorDiv.style.display = 'block';
                 // Trigger shake animation
                 errorDiv.style.animation = 'none';

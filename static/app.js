@@ -502,6 +502,153 @@ async function checkHealth() {
     }
 }
 
+function handleLogout() {
+    localStorage.removeItem('privguard_user');
+    window.location.href = '/';
+}
+
+// ========================
+// Flagged Users (Admin)
+// ========================
+let pendingRemovalUsername = '';
+
+async function fetchFlaggedUsers() {
+    try {
+        const response = await fetch('/api/v1/flagged-users');
+        if (!response.ok) return;
+        const users = await response.json();
+        renderFlaggedUsers(users);
+    } catch (err) {
+        console.error('Failed to fetch flagged users:', err);
+    }
+}
+
+function renderFlaggedUsers(users) {
+    const emptyDiv = document.getElementById('flaggedEmpty');
+    const tableWrapper = document.getElementById('flaggedTableWrapper');
+    const tableBody = document.getElementById('flaggedTableBody');
+    const badge = document.getElementById('flaggedCount');
+
+    if (!emptyDiv || !tableWrapper || !tableBody || !badge) return;
+
+    badge.textContent = `${users.length} flagged`;
+
+    if (users.length === 0) {
+        emptyDiv.style.display = 'block';
+        tableWrapper.style.display = 'none';
+        return;
+    }
+
+    emptyDiv.style.display = 'none';
+    tableWrapper.style.display = 'block';
+
+    tableBody.innerHTML = '';
+
+    users.forEach(user => {
+        const row = document.createElement('tr');
+
+        const reasonsHtml = user.reasons.map(r =>
+            `<div class="reason-tag" title="${escapeHtml(r)}">${escapeHtml(r)}</div>`
+        ).join('');
+
+        const lastFlagged = user.last_flagged_at
+            ? new Date(user.last_flagged_at).toLocaleString('en-US', {
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                month: 'short', day: 'numeric', hour12: false
+            })
+            : '—';
+
+        row.innerHTML = `
+            <td><span class="danger-badge">🔴 DANGEROUS</span></td>
+            <td style="font-weight: 700; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;">${escapeHtml(user.username)}</td>
+            <td>${escapeHtml(user.name)}</td>
+            <td>${escapeHtml(user.department)}</td>
+            <td style="text-align: center;">
+                <span style="color: ${user.failed_login_attempts > 0 ? 'var(--color-critical)' : 'var(--text-muted)'}; font-weight: 700;">
+                    ${user.failed_login_attempts}
+                </span>
+            </td>
+            <td style="text-align: center;">
+                <span style="color: ${user.anomalous_actions > 0 ? 'var(--color-high)' : 'var(--text-muted)'}; font-weight: 700;">
+                    ${user.anomalous_actions}
+                </span>
+            </td>
+            <td>${reasonsHtml || '<span style="color: var(--text-muted);">—</span>'}</td>
+            <td style="font-size: 0.75rem; color: var(--text-muted);">${lastFlagged}</td>
+            <td>
+                <button class="btn-remove-user" onclick="openRemovalDialog('${escapeHtml(user.username)}', '${escapeHtml(user.name)}', '${escapeHtml(user.department)}')">
+                    🗑️ Remove
+                </button>
+            </td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Removal dialog
+function openRemovalDialog(username, name, department) {
+    pendingRemovalUsername = username;
+    const infoDiv = document.getElementById('removalUserInfo');
+    infoDiv.innerHTML = `
+        <div>👤 <strong>${escapeHtml(name)}</strong></div>
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">
+            Username: <strong>${escapeHtml(username)}</strong> · Department: <strong>${escapeHtml(department)}</strong>
+        </div>
+    `;
+    document.getElementById('removalOverlay').classList.add('active');
+}
+
+function closeRemovalDialog() {
+    document.getElementById('removalOverlay').classList.remove('active');
+    pendingRemovalUsername = '';
+}
+
+async function confirmRemoveUser() {
+    if (!pendingRemovalUsername) return;
+
+    const btn = document.getElementById('removalConfirmBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Removing...';
+
+    try {
+        const response = await fetch(`/api/v1/users/${pendingRemovalUsername}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || 'Failed to remove user');
+        }
+
+        showToast(`✅ ${data.name} (${pendingRemovalUsername}) has been permanently removed.`);
+        closeRemovalDialog();
+        fetchFlaggedUsers(); // Refresh the list
+    } catch (err) {
+        showToast(`❌ Error: ${err.message}`);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🗑️ Remove Account';
+    }
+}
+
+function showToast(message) {
+    const toast = document.getElementById('toastNotification');
+    const msgSpan = document.getElementById('toastMessage');
+    msgSpan.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 4000);
+}
+
 // ========================
 // Init
 // ========================
@@ -509,13 +656,11 @@ document.addEventListener('DOMContentLoaded', () => {
     checkHealth();
     drawDonutChart([]);
     drawTimelineChart([]);
-    
+    fetchFlaggedUsers();
+
     // Periodic health check
     setInterval(checkHealth, 10000);
+
+    // Periodic flagged users refresh
+    setInterval(fetchFlaggedUsers, 5000);
 });
-
-function handleLogout() {
-    localStorage.removeItem('privguard_user');
-    window.location.href = '/';
-}
-

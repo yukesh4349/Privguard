@@ -640,9 +640,21 @@
                 alert('Please enter a valid 6-digit verification code.');
                 return;
             }
-            closeModal('mfaOverlay');
-            writeToConsole(`MFA Validation Successful. Re-authorizing token...`, 'info');
-            writeToConsole(`ACCESS GRANTED: Operation completed successfully.`, 'success');
+            // Only accept '123456' as the valid MFA code
+            if (codeInput.value !== '123456') {
+                writeToConsole('MFA VERIFICATION FAILED: Invalid code entered.', 'alert');
+                closeModalSilent('mfaOverlay');
+                codeInput.value = '';
+                // This counts as anomalous behavior — re-submit with failure
+                if (currentActionBody) {
+                    currentActionBody.result_status = 'mfa_failed';
+                    submitIngest(currentActionBody);
+                }
+                return;
+            }
+            closeModalSilent('mfaOverlay');
+            writeToConsole('MFA Validation Successful. Re-authorizing token...', 'info');
+            writeToConsole('ACCESS GRANTED: Operation completed successfully.', 'success');
             codeInput.value = '';
         }
 
@@ -679,6 +691,10 @@
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
             writeToConsole('Operation cancelled by user.', 'warning');
+        }
+
+        function closeModalSilent(id) {
+            document.getElementById(id).classList.remove('active');
         }
 
         // Logout

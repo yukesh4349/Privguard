@@ -75,3 +75,14 @@ class SimulationResponse(BaseModel):
     events_generated: int
     threats_detected: int
     alerts: List[AlertDetail]
+
+class FlaggedUser(BaseModel):
+    """A user flagged for anomalous/dangerous behavior."""
+    username: str
+    name: str
+    department: str
+    status: str  # DANGEROUS or SAFE
+    failed_login_attempts: int
+    anomalous_actions: int
+    reasons: List[str]
+    last_flagged_at: str
