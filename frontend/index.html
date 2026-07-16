@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="/static/auth.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="PrivGuard — AI-Driven Insider Threat Detection Platform with real-time UEBA, anomaly detection, and automated response.">
+    <title>PrivGuard — Insider Threat Detection Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+
+<body>
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo-icon">🛡️</div>
+                <div>
+                    <h1 class="header-title">PrivGuard</h1>
+                    <p class="header-subtitle">Insider Threat Detection Platform</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-badge">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Engine Online</span>
+                </div>
+                <button class="btn-logout" onclick="handleLogout()" style="margin-left: 10px;">
+                    Sign Out
+                </button>
+            </div>
+
+        </header>
+
+        <!-- Stats Cards -->
+        <section class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <span class="stat-icon">📊</span>
+                <div class="stat-label">Total Events</div>
+                <div class="stat-value" id="statTotal">0</div>
+            </div>
+            <div class="stat-card threats">
+                <span class="stat-icon">⚠️</span>
+                <div class="stat-label">Active Threats</div>
+                <div class="stat-value" id="statThreats">0</div>
+            </div>
+            <div class="stat-card critical">
+                <span class="stat-icon">🚨</span>
+                <div class="stat-label">Critical Alerts</div>
+                <div class="stat-value" id="statCritical">0</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">📈</span>
+                <div class="stat-label">Avg Risk Score</div>
+                <div class="stat-value" id="statAvgScore">0.0</div>
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <section class="main-grid">
+            <!-- Threat Feed -->
+            <div class="panel" id="threatPanel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="panel-title-dot"></span>
+                        Live Threat Feed
+                    </div>
+                    <span class="panel-badge" id="feedCount">0 events</span>
+                </div>
+                <div class="threat-header">
+                    <span>Time</span>
+                    <span>User</span>
+                    <span>Target</span>
+                    <span>Risk Band</span>
+                    <span>Score</span>
+                    <span>Action</span>
+                </div>
+                <div class="panel-body">
+                    <div class="threat-feed" id="threatFeed">
+                        <div class="empty-state" id="emptyState">
+                            <div class="empty-icon">🔍</div>
+                            <div class="empty-title">No Events Yet</div>
+                            <div class="empty-desc">
+                                Waiting for live events to be generated from user activity...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side Charts -->
+            <div class="side-panels">
+                <!-- Donut Chart -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-title-dot"></span>
+                            Risk Distribution
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="donut-wrapper">
+                            <canvas id="donutChart" width="220" height="220"></canvas>
+                            <div class="donut-legend" id="donutLegend">
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: var(--color-low)"></span>
+                                    Low
+                                    <span class="legend-count" id="legendLow">0</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: var(--color-medium)"></span>
+                                    Medium
+                                    <span class="legend-count" id="legendMedium">0</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: var(--color-high)"></span>
+                                    High
+                                    <span class="legend-count" id="legendHigh">0</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: var(--color-critical)"></span>
+                                    Critical
+                                    <span class="legend-count" id="legendCritical">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Chart -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-title-dot"></span>
+                            Risk Score Timeline
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="chart-container">
+                            <canvas id="timelineChart" width="340" height="180"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer: Score Breakdown + Latest Alert Detail -->
+        <section class="footer-row">
+            <!-- Score Breakdown -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="panel-title-dot"></span>
+                        Scoring Model Weights
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="breakdown-table">
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">🧠 ML Anomaly (UEBA)</span>
+                            <div class="breakdown-bar-track">
+                                <div class="breakdown-bar-fill" style="width: 45%; background: var(--accent-cyan);"></div>
+                            </div>
+                            <span class="breakdown-value">45%</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">📋 Rule Engine</span>
+                            <div class="breakdown-bar-track">
+                                <div class="breakdown-bar-fill" style="width: 35%; background: var(--accent-blue);"></div>
+                            </div>
+                            <span class="breakdown-value">35%</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">🔗 Graph Context</span>
+                            <div class="breakdown-bar-track">
+                                <div class="breakdown-bar-fill" style="width: 20%; background: var(--accent-purple);"></div>
+                            </div>
+                            <span class="breakdown-value">20%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Latest Critical Alert -->
+            <div class="panel" id="latestAlertPanel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="panel-title-dot"></span>
+                        Latest Critical Alert
+                    </div>
+                    <span class="panel-badge" id="latestAlertBadge">—</span>
+                </div>
+                <div class="panel-body">
+                    <div class="breakdown-table" id="latestAlertDetail">
+                        <div class="empty-state" style="padding: 30px;">
+                            <div class="empty-icon" style="font-size: 2rem;">🟢</div>
+                            <div class="empty-title">All Clear</div>
+                            <div class="empty-desc">No critical alerts detected.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- 🚨 FLAGGED USERS PANEL (NEW) -->
+        <!-- ============================== -->
+        <section class="flagged-section" id="flaggedSection">
+            <div class="panel flagged-panel">
+                <div class="panel-header">
+                    <div class="panel-title" style="color: var(--color-critical);">
+                        <span class="panel-title-dot" style="background: var(--color-critical);"></span>
+                        🚨 Flagged Users — Anomalous Behavior Detected
+                    </div>
+                    <span class="panel-badge flagged-count-badge" id="flaggedCount">0 flagged</span>
+                </div>
+                <div class="panel-body">
+                    <div id="flaggedUsersContainer">
+                        <div class="flagged-empty" id="flaggedEmpty">
+                            <div style="font-size: 2.5rem; margin-bottom: 12px;">✅</div>
+                            <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">No Flagged Users</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">All user accounts are operating within normal behavior parameters.</div>
+                        </div>
+                        <div class="flagged-table-wrapper" id="flaggedTableWrapper" style="display: none;">
+                            <table class="flagged-table" id="flaggedTable">
+                                <thead>
+                                    <tr>
+                                        <th>Status</th>
+                                        <th>Username</th>
+                                        <th>Name</th>
+                                        <th>Department</th>
+                                        <th>Failed Logins</th>
+                                        <th>Dangerous Actions</th>
+                                        <th>Reasons</th>
+                                        <th>Last Flagged</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="flaggedTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- User Removal Confirmation Dialog -->
+    <div class="removal-overlay" id="removalOverlay">
+        <div class="removal-dialog">
+            <div style="font-size: 2.5rem; margin-bottom: 16px;">⚠️</div>
+            <h3 style="color: var(--color-critical); font-weight: 800; margin-bottom: 10px;">REMOVE USER ACCOUNT</h3>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; margin-bottom: 8px;">
+                You are about to <strong style="color: var(--color-critical);">permanently remove</strong> the following user account:
+            </p>
+            <div class="removal-user-info" id="removalUserInfo">
+                <!-- Filled dynamically -->
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 12px;">
+                This action is irreversible. The user will be unable to log in and all active sessions will be terminated.
+            </p>
+            <div class="removal-actions">
+                <button class="removal-btn-cancel" onclick="closeRemovalDialog()">Cancel</button>
+                <button class="removal-btn-confirm" id="removalConfirmBtn" onclick="confirmRemoveUser()">🗑️ Remove Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success/failure toast notification -->
+    <div class="toast-notification" id="toastNotification">
+        <span id="toastMessage"></span>
+    </div>
+
+    <style>
+        /* Flagged Users Section */
+        .flagged-section {
+            margin-top: 20px;
+        }
+        .flagged-panel {
+            border-color: rgba(239, 68, 68, 0.2) !important;
+            background: linear-gradient(180deg, rgba(239, 68, 68, 0.03), var(--bg-card)) !important;
+        }
+        .flagged-count-badge {
+            background: rgba(239, 68, 68, 0.15) !important;
+            color: var(--color-critical) !important;
+            font-weight: 700;
+        }
+        .flagged-empty {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .flagged-table-wrapper {
+            overflow-x: auto;
+        }
+        .flagged-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        .flagged-table th {
+            text-align: left;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--bg-glass-border);
+        }
+        .flagged-table td {
+            padding: 14px 14px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            vertical-align: middle;
+        }
+        .flagged-table tr:hover td {
+            background: rgba(239, 68, 68, 0.03);
+        }
+        .danger-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--color-critical);
+            padding: 5px 12px;
+            border-radius: 100px;
+            font-weight: 700;
+            font-size: 0.72rem;
+            animation: dangerPulse 1.5s infinite;
+        }
+        @keyframes dangerPulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+        }
+        .reason-tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--bg-glass-border);
+            padding: 3px 8px;
+            border-radius: var(--radius-xs);
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin: 2px 0;
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .btn-remove-user {
+            padding: 6px 14px;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius-sm);
+            color: var(--color-critical);
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+        .btn-remove-user:hover {
+            background: rgba(239, 68, 68, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+        .flagged-count-num {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--color-critical);
+        }
+
+        /* Removal Overlay */
+        .removal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(5, 8, 16, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .removal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .removal-dialog {
+            background: var(--bg-card);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius);
+            padding: 36px;
+            max-width: 460px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        .removal-overlay.active .removal-dialog {
+            transform: scale(1);
+        }
+        .removal-user-info {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .removal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+        .removal-btn-cancel {
+            padding: 10px 24px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--bg-glass-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .removal-btn-confirm {
+            padding: 10px 24px;
+            background: var(--color-critical);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: var(--transition);
+        }
+        .removal-btn-confirm:hover {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+            transform: translateY(-1px);
+        }
+
+        /* Toast */
+        .toast-notification {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--bg-card);
+            border: 1px solid var(--bg-glass-border);
+            border-radius: var(--radius);
+            padding: 14px 28px;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            z-index: 300;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        .toast-notification.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
