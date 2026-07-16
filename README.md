@@ -8,36 +8,16 @@ PrivGuard is a real-time insider threat detection engine that combines **User & 
 
 ## 🏗️ Architecture Overview
 
-```
-┌──────────────┐     ┌───────────────────┐     ┌──────────────────┐
-│  Event Source │────▶│  FastAPI Ingest    │────▶│  Feature Engine  │
-│  (SIEM/Logs) │     │  /api/v1/events    │     │  (Rolling UEBA)  │
-└──────────────┘     └───────────────────┘     └────────┬─────────┘
-                                                        │
-                     ┌──────────────────────────────────┘
-                     ▼
-        ┌────────────────────────┐
-        │   Composite Risk       │
-        │   Scoring Engine       │
-        │                        │
-        │  ┌────────┐ ┌───────┐  │
-        │  │ Rules   │ │ ML    │  │
-        │  │ (0.35)  │ │(0.45) │  │
-        │  ├────────┤ ├───────┤  │
-        │  │ Graph   │ │       │  │
-        │  │ (0.20)  │ │       │  │
-        │  └────────┘ └───────┘  │
-        └────────┬───────────────┘
-                 │
-                 ▼
-        ┌────────────────────┐
-        │  Action Router     │
-        │  ─────────────     │
-        │  Low  → Allow      │
-        │  Med  → Step-up MFA│
-        │  High → JIT Approve│
-        │  Crit → Auto Block │
-        └────────────────────┘
+```mermaid
+graph TD
+    A[User Logs] --> D
+    B[System Logs] --> D
+    C[Network Logs] --> D
+    D[Data Collection] --> E[AI Behaviour Analysis]
+    E --> F[Risk Scoring Engine]
+    F --> G[Threat Detection]
+    G --> H[Alert / Block Access]
+    H --> I[Admin Dashboard]
 ```
 
 ---
@@ -51,7 +31,7 @@ PrivGuard is a real-time insider threat detection engine that combines **User & 
 | **Composite Risk Scoring** | Weighted multi-signal fusion (rules + ML + graph context) |
 | **Adaptive Response Actions** | Auto-routing: Allow → Step-up MFA → JIT Approval → Session Block |
 | **Identity Graph Engine** | Neo4j-backed privilege escalation path analysis |
-| **Post-Quantum Cryptography** | ML-DSA (FIPS 204) & ML-KEM (FIPS 203) stubs for tamper-evident logs |
+| **Post-Quantum Cryptography (QPC)** | Sensitive credentials secured using **CRYSTALS-Kyber (ML-KEM)** for key encapsulation and **CRYSTALS-Dilithium (ML-DSA)** / **Falcon** for digital signatures, protecting against future quantum attacks |
 | **PostgreSQL Schema** | Production-grade relational model with RBAC, sessions, alerts & cases |
 
 ---

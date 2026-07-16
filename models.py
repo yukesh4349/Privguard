@@ -13,6 +13,8 @@ class EventModel(BaseModel):
     bytes_transferred: Optional[int] = None
     command_text: Optional[str] = None
     result_status: Optional[str] = None
+    username: Optional[str] = None
+
 
 class RiskScoreResponse(BaseModel):
     event_id: UUID

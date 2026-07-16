@@ -22,53 +22,12 @@ const API = {
 };
 
 // ========================
-// Simulation
+// Live Alerts Polling
 // ========================
-async function runSimulation() {
-    const btn = document.getElementById('btnSimulate');
-    if (isSimulating) return;
-    
-    isSimulating = true;
-    btn.classList.add('loading');
-    btn.textContent = '⏳ Simulating...';
-    
-    // Clear current display
-    allAlerts = [];
-    animationIndex = 0;
-    clearInterval(animationTimer);
-    renderThreatFeed([]);
-    updateStats({ total_events: 0, active_threats: 0, critical_alerts: 0, avg_risk_score: 0, band_counts: { Low: 0, Medium: 0, High: 0, Critical: 0 } });
-    
+async function fetchLiveAlerts() {
     try {
-        const data = await API.simulate();
-        const alerts = data.alerts || [];
-        
-        // Animate events appearing one by one
-        animateEventsIn(alerts);
-        
-    } catch (err) {
-        console.error('Simulation failed:', err);
-        btn.textContent = '❌ Failed — Retry';
-        btn.classList.remove('loading');
-        isSimulating = false;
-    }
-}
-
-function animateEventsIn(alerts) {
-    const btn = document.getElementById('btnSimulate');
-    let index = 0;
-    
-    animationTimer = setInterval(() => {
-        if (index >= alerts.length) {
-            clearInterval(animationTimer);
-            btn.classList.remove('loading');
-            btn.textContent = '⚡ Simulate Again';
-            isSimulating = false;
-            return;
-        }
-        
-        allAlerts.push(alerts[index]);
-        index++;
+        const alerts = await API.alerts();
+        allAlerts = alerts || [];
         
         // Update everything
         renderThreatFeed(allAlerts);
@@ -76,12 +35,9 @@ function animateEventsIn(alerts) {
         drawDonutChart(allAlerts);
         drawTimelineChart(allAlerts);
         updateLatestCritical(allAlerts);
-        
-        // Scroll feed to show latest
-        const feed = document.getElementById('threatFeed');
-        feed.scrollTop = 0;
-        
-    }, 300); // 300ms between each event appearing
+    } catch (err) {
+        console.error('Failed to fetch live alerts:', err);
+    }
 }
 
 // ========================
@@ -658,8 +614,13 @@ document.addEventListener('DOMContentLoaded', () => {
     drawTimelineChart([]);
     fetchFlaggedUsers();
 
+    fetchLiveAlerts();
+
     // Periodic health check
     setInterval(checkHealth, 10000);
+
+    // Periodic live alerts refresh
+    setInterval(fetchLiveAlerts, 2000);
 
     // Periodic flagged users refresh
     setInterval(fetchFlaggedUsers, 5000);

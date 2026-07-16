@@ -9,8 +9,9 @@ from simulator import generate_full_simulation
 from uuid import UUID
 from datetime import datetime
 import uuid
+from pqc_crypto import MLDSASignatureProvider, MLKEMKeyExchangeProvider, hybrid_encrypt_credential, hybrid_decrypt_credential
 
-# User Credentials database — common password: 123456
+# User Credentials database
 CREDENTIALS_DB = {
     "admin": {"password": "123456", "name": "Security Admin", "department": "SecOps", "role": "admin"},
     "alice": {"password": "123456", "name": "Alice Chen", "department": "Engineering", "role": "user"},
@@ -19,6 +20,23 @@ CREDENTIALS_DB = {
     "dave": {"password": "123456", "name": "Dave Wilson", "department": "IT-Admin", "role": "user"},
     "eve": {"password": "123456", "name": "Eve Nakamura", "department": "Contractor", "role": "user"}
 }
+
+# --- PQC Credential Initialization ---
+kyber_kem = MLKEMKeyExchangeProvider()
+dilithium_sig = MLDSASignatureProvider()
+kyber_pub, kyber_priv = kyber_kem.generate_keypair()
+
+for username, info in CREDENTIALS_DB.items():
+    # Encrypt password with Kyber
+    encrypted_pwd = hybrid_encrypt_credential(info["password"], kyber_kem, kyber_pub)
+    info["encrypted_password"] = encrypted_pwd
+    
+    # Sign the credential record with Dilithium
+    record_str = f"{username}:{info['role']}:{info['department']}"
+    info["signature"] = dilithium_sig.sign(record_str.encode('utf-8'))
+    
+    # Remove plaintext password for security
+    del info["password"]
 
 # Session mapping: active session token -> user profile info
 SESSION_USER_MAP = {}
@@ -62,8 +80,12 @@ def flag_user(username: str, reason: str):
     if reason not in entry["reasons"]:
         entry["reasons"].append(reason)
 
-def _resolve_user(session_id: str) -> tuple[str, str]:
+def _resolve_user(session_id: str, username: str = None) -> tuple[str, str]:
     """Helper to resolve name and department from session_id or database."""
+    if username and username in CREDENTIALS_DB:
+        user_info = CREDENTIALS_DB[username]
+        return user_info["name"], user_info["department"]
+
     if session_id in SESSION_USER_MAP:
         user = SESSION_USER_MAP[session_id]
         return user["name"], user["department"]
@@ -166,12 +188,12 @@ async def ingest_event(event: EventModel):
                    f"Rule Score: {rule_score:.1f}. "
                    f"Action assigned based on {risk_band} risk band.")
     
-    user_name, department = _resolve_user(str(event.session_id))
+    user_name, department = _resolve_user(str(event.session_id), event.username)
 
     # --- Anomalous behavior tracking ---
-    # Resolve username from session token
+    # Resolve username from session token or event payload
     session_str = str(event.session_id)
-    acting_username = SESSION_TO_USERNAME.get(session_str, None)
+    acting_username = event.username or SESSION_TO_USERNAME.get(session_str, None)
     
     if acting_username and risk_band in ("High", "Critical"):
         reason = f"Dangerous action: {event.event_type} on {event.target_system or 'unknown'} (Risk: {risk_band}, Score: {composite:.1f})"
@@ -211,8 +233,8 @@ async def ingest_event(event: EventModel):
 
 @app.get("/api/v1/alerts", response_model=list[AlertDetail])
 async def get_alerts():
-    """Return all stored alerts, newest first."""
-    return list(reversed(alert_store))
+    """Return all stored alerts, oldest first (chronological)."""
+    return alert_store
 
 
 @app.get("/api/v1/stats", response_model=DashboardStats)
@@ -319,8 +341,20 @@ async def login(req: LoginRequest):
         })
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
+    # Verify Dilithium signature to ensure data integrity
+    record_str = f"{username}:{CREDENTIALS_DB[username]['role']}:{CREDENTIALS_DB[username]['department']}"
+    if not dilithium_sig.verify(record_str.encode('utf-8'), CREDENTIALS_DB[username]["signature"]):
+        raise HTTPException(status_code=500, detail="CRITICAL: Credential record signature verification failed! Possible database tampering.")
+
+    # Decrypt password using Kyber decapsulation
+    encrypted_payload = CREDENTIALS_DB[username]["encrypted_password"]
+    try:
+        decrypted_password = hybrid_decrypt_credential(encrypted_payload, kyber_kem, kyber_priv)
+    except Exception as e:
+        decrypted_password = None
+        
     # Check password
-    if CREDENTIALS_DB[username]["password"] != req.password:
+    if decrypted_password != req.password:
         # Track failed login attempt
         if username not in FAILED_LOGIN_TRACKER:
             FAILED_LOGIN_TRACKER[username] = []
